@@ -9,6 +9,8 @@ import com.example.IRCTC.entity.User;
 import com.example.IRCTC.repository.UserRepository;
 import com.example.IRCTC.utils.JwtUtil;
 
+import java.util.Collections;
+
 @Service
 public class AuthService {
     @Autowired
@@ -29,7 +31,7 @@ public class AuthService {
         user.setUserName(username);
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(password));
-        user.setRoles(role);
+        user.setRoles(Collections.singletonList(role)); // Convert String role to List<String>
         userRepository.save(user);
         return "User registered successfully";
     }
