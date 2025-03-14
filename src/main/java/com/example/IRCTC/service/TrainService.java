@@ -15,4 +15,11 @@ public class TrainService {
     
     public List<Train> getAllTrains() { return trainRepository.findAll(); }
     public Train addTrain(Train train) { return trainRepository.save(train); }
+    public boolean deleteTrainById(Long id) {
+        if (trainRepository.existsById(id)) {
+            trainRepository.deleteById(id);
+            return true; // Successfully deleted
+        }
+        return false; // Train ID not found
+    }
 }
