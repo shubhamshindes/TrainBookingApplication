@@ -32,7 +32,16 @@ public class UserController {
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.ok(users);
     }
-
+    @DeleteMapping("deleteUserById/{id}")
+    public ResponseEntity<?>deleteUserById(@PathVariable Long id)
+    {
+    boolean isDeleted =userService.deleteUserById(id);
+    if(isDeleted)
+    {
+        return ResponseEntity.ok("user Deleted Successfully");
+    }
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found in db");
+    }
     @GetMapping("/getUserById/{id}")
     public ResponseEntity<Map<String, Object>> getUserById(@PathVariable Long id) {
         return userService.getUserById(id)

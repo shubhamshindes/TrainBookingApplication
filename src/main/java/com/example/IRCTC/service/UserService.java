@@ -42,5 +42,15 @@ public static final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(
         }
     }
 
+   public boolean deleteUserById(Long id){
+
+        Optional<User> user = userRepository.findById(id);
+        if(user.isPresent()){
+            userRepository.deleteById(id);
+            return true;
+        }
+        return false;
+    }
+
 
 }
