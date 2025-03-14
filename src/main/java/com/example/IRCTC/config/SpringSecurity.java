@@ -35,6 +35,7 @@ public class SpringSecurity {
                         .requestMatchers("/trains/").hasRole("USER")//only user can access
                         .requestMatchers("/trains/add").hasRole("ADMIN")
                         .requestMatchers("/user/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/bookings/**").hasAnyRole("USER","ADMIN")
                         .anyRequest().authenticated())
                 .csrf(AbstractHttpConfigurer::disable)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
