@@ -1,6 +1,6 @@
 package com.example.IRCTC.controller;
-
 import com.example.IRCTC.entity.Bookings;
+import com.example.IRCTC.repository.BookingsRepository;
 import com.example.IRCTC.service.BookingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,6 +17,8 @@ public class BookingController {
 
     @Autowired
     private BookingService bookingService;
+    @Autowired
+    private BookingsRepository bookingsRepository;
 
     @PostMapping("/book")
     public ResponseEntity<Map<String, Object>> bookTrain(@RequestBody Map<String, Object> requestData) {
@@ -40,25 +42,29 @@ public class BookingController {
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<Map<String, Object>> getBookingsByUser(@PathVariable Long userId) {
-        List<Bookings> bookings = bookingService.getBookingsByUser(userId);
+        List<Bookings> bookings = bookingsRepository.findByUserId(userId);
 
         if (bookings.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "No bookings found for this user"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "No bookings found for this user"));
         }
 
-        List<Map<String, Object>> responseList = new ArrayList<>();
+        List<Map<String, Object>> bookingDetails = new ArrayList<>();
+
         for (Bookings booking : bookings) {
-            Map<String, Object> bookingDetails = new HashMap<>();
-            bookingDetails.put("bookingId", booking.getId());
-            bookingDetails.put("trainId", booking.getTrain().getId());
-            bookingDetails.put("trainName", booking.getTrain().getName());
-            bookingDetails.put("seatsBooked", booking.getSeatsBooked());
+            Map<String, Object> bookingData = new HashMap<>();
+            bookingData.put("bookingId", booking.getId());
+            bookingData.put("trainId", booking.getTrain().getId());
+            bookingData.put("trainName", booking.getTrain().getName()); // Fetch train name
+            bookingData.put("username", booking.getUser().getUserName());   // Fetch user name
+            bookingData.put("seatsBooked", booking.getSeatsBooked());
 
-            responseList.add(bookingDetails);
+            bookingDetails.add(bookingData);
         }
 
-        return ResponseEntity.ok(Map.of("bookings", responseList));
+        return ResponseEntity.ok(Map.of("bookings", bookingDetails));
     }
+
 
 
 }
