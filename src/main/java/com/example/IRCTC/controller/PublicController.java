@@ -20,6 +20,9 @@ import com.example.IRCTC.repository.UserRepository;
 import com.example.IRCTC.service.UserDetailsServiceImpl;
 import com.example.IRCTC.utils.JwtUtil;
 
+import java.util.HashMap;
+import java.util.Map;
+
 
 @RestController
 @RequestMapping("/public")
@@ -45,16 +48,23 @@ public class PublicController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<String> signup(@RequestBody User user) {
+    public ResponseEntity<Map<String, Object>> signup(@RequestBody User user) {
         if (userRepository.existsByEmail(user.getEmail())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("User already exists in the database");
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "User already exists in the database"));
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        userRepository.save(user);
+        User savedUser = userRepository.save(user); // Save user and get stored ID
 
-        return ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully");
+        // Create response with user ID
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "User registered successfully");
+        response.put("userId", savedUser.getId()); // Assuming `id` is auto-generated
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
+
 
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody User user) {
