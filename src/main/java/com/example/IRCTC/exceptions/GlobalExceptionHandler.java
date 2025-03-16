@@ -25,13 +25,26 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
-
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", ex.getMessage());
+        response.put("status", HttpStatus.NOT_FOUND.value());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
     @ExceptionHandler(TrainNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleTrainNotFoundException(TrainNotFoundException ex) {
         logger.error("Train not found error: {}", ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("message", ex.getMessage(), "status", HttpStatus.NOT_FOUND.value()));
+    }
+    @ExceptionHandler(InvalidBookingException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidBookingException(InvalidBookingException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", ex.getMessage());
+        response.put("status", HttpStatus.BAD_REQUEST.value());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(Exception.class)
