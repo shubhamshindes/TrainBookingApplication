@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.example.IRCTC.entity.User;
+import com.example.IRCTC.exceptions.UserNotFoundException;
 import com.example.IRCTC.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,34 +46,19 @@ public class UserController {
     @DeleteMapping("deleteUserById/{id}")
     public ResponseEntity<?> deleteUserById(@PathVariable Long id) {
         logger.info("Received request to delete user with ID: {}", id);
-        boolean isDeleted = userService.deleteUserById(id);
-
-        if (isDeleted) {
-            logger.info("User with ID: {} deleted successfully.", id);
-            return ResponseEntity.ok("User deleted successfully");
-        } else {
-            logger.warn("User with ID: {} not found in the database.", id);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found in DB");
-        }
+        userService.deleteUserById(id);
+        return ResponseEntity.ok("User deleted successfully");
     }
 
     @GetMapping("/getUserById/{id}")
     public ResponseEntity<Map<String, Object>> getUserById(@PathVariable Long id) {
         logger.info("Received request to fetch user with ID: {}", id);
-        return userService.getUserById(id)
-                .map(user -> {
-                    logger.info("User with ID: {} retrieved successfully.", id);
-                    Map<String, Object> response = new HashMap<>();
-                    response.put("message", "User retrieved successfully");
-                    response.put("data", user);
-                    return ResponseEntity.ok(response);
-                })
-                .orElseGet(() -> {
-                    logger.warn("User with ID: {} not found.", id);
-                    Map<String, Object> errorResponse = new HashMap<>();
-                    errorResponse.put("message", "User not found with ID: " + id);
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
-                });
+        User user = userService.getUserById(id).orElseThrow(() -> new UserNotFoundException("User not found with ID: " + id));
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "User retrieved successfully");
+        response.put("data", user);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/updateUser")

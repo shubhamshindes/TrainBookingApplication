@@ -48,18 +48,9 @@ class TrainController {
     @DeleteMapping("/deleteTrainById/{id}")
     public ResponseEntity<Map<String, Object>> deleteByTrainId(@PathVariable Long id) {
         logger.info("Attempting to delete train with ID: {}", id);
-        boolean isDeleted = trainService.deleteTrainById(id);
+        trainService.deleteTrainById(id);
 
-        Map<String, Object> response = new HashMap<>();
-        if (isDeleted) {
-            logger.info("Train with ID {} deleted successfully.", id);
-            response.put("message", "Train deleted successfully.");
-            return ResponseEntity.ok(response);
-        } else {
-            logger.warn("Train with ID {} not found.", id);
-            response.put("message", "Train not found with ID: " + id);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+        return ResponseEntity.ok(Map.of("message", "Train deleted successfully."));
     }
 
     @PostMapping("/add")
@@ -76,25 +67,14 @@ class TrainController {
 
     @GetMapping("/{trainId}/available-seats")
     public ResponseEntity<Map<String, Object>> getTrainDetails(@PathVariable Long trainId) {
-        logger.info("Received request to check available seats for trainId={}", trainId);
+        logger.info("Checking available seats for trainId={}", trainId);
 
-        Optional<Train> trainOpt = trainRepository.findById(trainId);
-        if (trainOpt.isEmpty()) {
-            logger.warn("Train not found with trainId={}", trainId);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "Train not found"));
-        }
+        Train train = trainService.getTrainById(trainId);
+        logger.info("Train details - ID={}, Name={}, AvailableSeats={}", trainId, train.getName(), train.getAvailableSeats());
 
-        Train train = trainOpt.get();
-        String trainName = train.getName();  // Assuming Train entity has a `name` field
-        int availableSeats = train.getAvailableSeats();
-
-        logger.info("Train details - trainId={}, name={}, availableSeats={}", trainId, trainName, availableSeats);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("trainName", trainName);
-        response.put("availableSeats", availableSeats);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(Map.of(
+                "trainName", train.getName(),
+                "availableSeats", train.getAvailableSeats()
+        ));
     }
 }

@@ -1,6 +1,7 @@
 package com.example.IRCTC.service;
 
 import com.example.IRCTC.entity.User;
+import com.example.IRCTC.exceptions.UserNotFoundException;
 import com.example.IRCTC.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,9 +37,10 @@ public class UserService {
         return userRepository.findByUserName(userName)
                 .orElseThrow(() -> {
                     logger.error("User not found with username: {}", userName);
-                    return new RuntimeException("User not found with username: " + userName);
+                    return new UserNotFoundException("User not found with username: " + userName);
                 });
     }
+
 
     public boolean saveNewUser(User user) {
         try {
@@ -63,6 +65,6 @@ public class UserService {
             return true;
         }
         logger.warn("User not found with ID: {}", id);
-        return false;
+        throw new UserNotFoundException("User not found with ID: " + id);
     }
 }

@@ -2,6 +2,7 @@ package com.example.IRCTC.service;
 
 import java.util.List;
 
+import com.example.IRCTC.exceptions.TrainNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,14 +33,15 @@ public class TrainService {
         return savedTrain;
     }
 
-    public boolean deleteTrainById(Long id) {
-        logger.info("Attempting to delete train with ID: {}", id);
-        if (trainRepository.existsById(id)) {
-            trainRepository.deleteById(id);
-            logger.info("Train with ID {} deleted successfully.", id);
-            return true; // Successfully deleted
-        }
-        logger.warn("Train with ID {} not found.", id);
-        return false; // Train ID not found
+    public Train getTrainById(Long trainId) {
+        return trainRepository.findById(trainId)
+                .orElseThrow(() -> new TrainNotFoundException("Train not found with ID: " + trainId));
+    }
+    public void deleteTrainById(Long id) {
+        Train train = trainRepository.findById(id)
+                .orElseThrow(() -> new TrainNotFoundException("Train not found with ID: " + id));
+
+        trainRepository.delete(train);
+        logger.info("Train with ID {} deleted successfully.", id);
     }
 }
