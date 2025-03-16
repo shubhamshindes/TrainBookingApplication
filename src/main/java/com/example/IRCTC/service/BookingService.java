@@ -44,7 +44,7 @@ public class BookingService {
                 return "Train not found.";
             }
 
-            User user = userOpt.get();
+            User user = userOpt.get(); //extracting User obj from Optional user (userOpt)
             Train train = trainOpt.get();
 
             if (train.getAvailableSeats() < seats) {

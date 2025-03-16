@@ -3,7 +3,9 @@ package com.example.IRCTC.controller;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
+import com.example.IRCTC.repository.TrainRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,8 @@ class TrainController {
 
     @Autowired
     private TrainService trainService;
+    @Autowired
+    private TrainRepository trainRepository;
 
     private static final Logger logger = LoggerFactory.getLogger(TrainController.class);
 
@@ -68,5 +72,29 @@ class TrainController {
         response.put("message", "Train added successfully.");
         response.put("trainId", savedTrain.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/{trainId}/available-seats")
+    public ResponseEntity<Map<String, Object>> getTrainDetails(@PathVariable Long trainId) {
+        logger.info("Received request to check available seats for trainId={}", trainId);
+
+        Optional<Train> trainOpt = trainRepository.findById(trainId);
+        if (trainOpt.isEmpty()) {
+            logger.warn("Train not found with trainId={}", trainId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Train not found"));
+        }
+
+        Train train = trainOpt.get();
+        String trainName = train.getName();  // Assuming Train entity has a `name` field
+        int availableSeats = train.getAvailableSeats();
+
+        logger.info("Train details - trainId={}, name={}, availableSeats={}", trainId, trainName, availableSeats);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("trainName", trainName);
+        response.put("availableSeats", availableSeats);
+
+        return ResponseEntity.ok(response);
     }
 }
