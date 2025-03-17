@@ -40,7 +40,7 @@ public class BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Train not found with ID=" + trainId));
 
         if (train.getAvailableSeats() < seats) {
-            throw new InvalidBookingException("Not enough seats available on Train ID=" + trainId);
+            throw new InvalidBookingException("Booking failed! Remaining seats on Train ID=" + trainId + " are " + train.getAvailableSeats());
         }
 
         // Deduct seats
