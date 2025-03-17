@@ -30,7 +30,7 @@ public class SpringSecurity {
 
         return http.authorizeHttpRequests(request -> request
                         .requestMatchers("/public/**").permitAll()
-                        .requestMatchers("/journal/**", "/USER/**").authenticated()//user started urlshoud have JWT TOken
+                        .requestMatchers("/user/**", "/USER/**").authenticated()//user started urlshoud have JWT TOken
                         .requestMatchers("/admin/**").hasRole("ADMIN")//only admin can access
                         .requestMatchers("/trains/").hasRole("USER")//only user can access
                         .requestMatchers("/trains/add").hasRole("ADMIN")

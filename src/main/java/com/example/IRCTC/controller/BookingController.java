@@ -28,16 +28,22 @@ public class BookingController {
     public ResponseEntity<Map<String, Object>> bookTrain(@RequestBody Map<String, Object> requestData) {
         logger.info("Received booking request: {}", requestData);
 
+        if (!requestData.containsKey("userId") || requestData.get("userId") == null ||
+                !requestData.containsKey("trainId") || requestData.get("trainId") == null ||
+                !requestData.containsKey("seatsBooked") || requestData.get("seatsBooked") == null) {
+
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid request. userId, trainId, and seatsBooked are required."));
+        }
+
         Long userId = ((Number) requestData.get("userId")).longValue();
         Long trainId = ((Number) requestData.get("trainId")).longValue();
-        int seatsBooked = (int) requestData.get("seatsBooked");
+        int seatsBooked = ((Number) requestData.get("seatsBooked")).intValue();  // ✅ Proper type conversion
 
         String result = bookingService.bookTrain(userId, trainId, seatsBooked);
         logger.info("Booking successful for userId={}, trainId={}", userId, trainId);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", result));
     }
-
     @GetMapping("/user/{userId}")
     public ResponseEntity<Map<String, Object>> getBookingsByUser(@PathVariable Long userId) {
         logger.info("Fetching bookings for userId={}", userId);

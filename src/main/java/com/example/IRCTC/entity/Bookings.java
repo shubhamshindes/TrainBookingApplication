@@ -17,6 +17,7 @@ public class Bookings {
     @JoinColumn(name = "train_id", nullable = false)
     private Train train;
 
+    @Column(name = "seats_booked", nullable = false)  // ✅ Explicit column mapping
     private int seatsBooked;
 
     public Long getId() { return id; }
