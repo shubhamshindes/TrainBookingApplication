@@ -5,6 +5,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "trains")
@@ -12,10 +13,13 @@ public class Train {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String name;
     private String source;
     private String destination;
-    private int availableSeats;
+
+    @Column(name = "available_seats")  // Ensure this column name is used in the database
+    private int availableSeats;  // Rename this field if needed
 
     // Getters and Setters
     public Long getId() { return id; }
