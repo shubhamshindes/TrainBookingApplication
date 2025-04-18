@@ -11,37 +11,37 @@ import org.springframework.stereotype.Service;
 import com.example.IRCTC.entity.Train;
 import com.example.IRCTC.repository.TrainRepository;
 
-@Service
-public class TrainService {
+    @Service
+    public class TrainService {
 
-    @Autowired
-    private TrainRepository trainRepository;
+        @Autowired
+        private TrainRepository trainRepository;
 
-    private static final Logger logger = LoggerFactory.getLogger(TrainService.class);
+        private static final Logger logger = LoggerFactory.getLogger(TrainService.class);
 
-    public List<Train> getAllTrains() {
-        logger.info("Fetching all trains from the database...");
-        List<Train> trains = trainRepository.findAll();
-        logger.info("Total trains found: {}", trains.size());
-        return trains;
+        public List<Train> getAllTrains() {
+            logger.info("Fetching all trains from the database...");
+            List<Train> trains = trainRepository.findAll();
+            logger.info("Total trains found: {}", trains.size());
+            return trains;
+        }
+
+        public Train addTrain(Train train) {
+            logger.info("Saving new train: {}", train);
+            Train savedTrain = trainRepository.save(train);
+            logger.info("Train saved successfully with ID: {}", savedTrain.getId());
+            return savedTrain;
+        }
+
+        public Train getTrainById(Long trainId) {
+            return trainRepository.findById(trainId)
+                    .orElseThrow(() -> new TrainNotFoundException("Train not found with ID: " + trainId));
+        }
+        public void deleteTrainById(Long id) {
+            Train train = trainRepository.findById(id)
+                    .orElseThrow(() -> new TrainNotFoundException("Train not found with ID: " + id));
+
+            trainRepository.delete(train);
+            logger.info("Train with ID {} deleted successfully.", id);
+        }
     }
-
-    public Train addTrain(Train train) {
-        logger.info("Saving new train: {}", train);
-        Train savedTrain = trainRepository.save(train);
-        logger.info("Train saved successfully with ID: {}", savedTrain.getId());
-        return savedTrain;
-    }
-
-    public Train getTrainById(Long trainId) {
-        return trainRepository.findById(trainId)
-                .orElseThrow(() -> new TrainNotFoundException("Train not found with ID: " + trainId));
-    }
-    public void deleteTrainById(Long id) {
-        Train train = trainRepository.findById(id)
-                .orElseThrow(() -> new TrainNotFoundException("Train not found with ID: " + id));
-
-        trainRepository.delete(train);
-        logger.info("Train with ID {} deleted successfully.", id);
-    }
-}

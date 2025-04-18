@@ -10,6 +10,8 @@ import com.example.IRCTC.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/user")
+
 public class UserController {
 
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
@@ -61,24 +64,18 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/updateUser")
-    public ResponseEntity<?> updateUser(@RequestBody User user) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userName = authentication.getName();
-        logger.info("Received request to update user: {}", userName);
+    @PutMapping("/update/{id}")
+    public ResponseEntity<String> updateUser(@PathVariable Long id, @RequestBody Map<String, Object> updates) {
+        logger.info("API call: PUT /users/update/{} with updates: {}", id, updates);
 
-        User userInDb = userService.findByUserName(userName);
-        if (userInDb == null) {
-            logger.warn("User with username: {} not found.", userName);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
-        } else {
-            logger.info("Updating user details for: {}", userName);
-            userInDb.setUserName(user.getUserName());
-            userInDb.setPassword(passwordEncoder.encode(user.getPassword())); // Secure password storage
-            userService.saveNewUser(userInDb);
-
-            logger.info("User: {} updated successfully.", userName);
-            return ResponseEntity.ok("User updated successfully");
+        String response = userService.updateUser(id, updates);
+        if (response.equals("User not found")) {
+            logger.warn("User update failed: User with ID {} not found", id);
+            return ResponseEntity.notFound().build();
         }
+
+        logger.info("User update successful for ID: {}", id);
+        return ResponseEntity.ok(response);
     }
+
 }

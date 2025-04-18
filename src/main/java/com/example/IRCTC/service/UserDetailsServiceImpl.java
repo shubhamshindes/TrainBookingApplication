@@ -24,9 +24,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 		if (userOptional.isPresent()) {
 			User user = userOptional.get(); // Extract User from Optional
 			return org.springframework.security.core.userdetails.User.builder()
-					.username(user.getUserName()) // Corrected method
-					.password(user.getPassword())
-					.roles(user.getRoles().toArray(new String[0])) // Convert List<String> to String[]
+					.username(user.getUserName()) //Sets the username.
+					.password(user.getPassword())//Sets the hashed password (stored in DB).
+					.roles(user.getRoles().toArray(new String[0])) //Converts user roles (e.g., ROLE_ADMIN) into a String[].
 					.build();
 		}
 

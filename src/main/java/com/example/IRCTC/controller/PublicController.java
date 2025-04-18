@@ -76,8 +76,7 @@ public class PublicController {
             String jwt = jwtUtil.generateToken(userDetails.getUsername());
             return new ResponseEntity<>(jwt, HttpStatus.OK);
         }catch (Exception e){
-           
-            return new ResponseEntity<>("Incorrect username or password", HttpStatus.BAD_REQUEST);
+           return new ResponseEntity<>("Incorrect username or password", HttpStatus.BAD_REQUEST);
         }
     }
 }
