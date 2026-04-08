@@ -29,7 +29,8 @@
 	<properties>
 		<java.version>17</java.version>
 		<sonar.host.url>http://localhost:9000</sonar.host.url>
-		<sonar.token>sqa_9b1194ec173e26192c7a80633faa6b996cd99ab3</sonar.token> <!-- Not recommended in production -->
+		<!--suppress UnresolvedMavenProperty -->
+		<sonar.token>sqa_f69e474bbe0f99553b9fa27a2af0185ae2dc1e35</sonar.token>
 		<sonar.projectKey>TrainBookingApplication</sonar.projectKey>
 	</properties>
 	<dependencies>
@@ -70,7 +71,10 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
 <dependency>
 	<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
