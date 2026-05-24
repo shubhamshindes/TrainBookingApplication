@@ -1,0 +1,131 @@
+
+
+services:
+  redis:
+    image: redis:7
+    container_name: train-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db:
+    image: mysql:8.0
+    container_name: train-mysql
+    environment:
+      MYSQL_DATABASE: train_booking_db
+      MYSQL_ROOT_PASSWORD: Boss@8055
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  eureka-server:
+    build:
+      context: ./eureka-server
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      disable: true # curl might not be installed in JRE. We rely on port checks.
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_APPLICATION_JSON={"eureka":{"client":{"service-url":{"defaultZone":"http://eureka-server:8761/eureka/"}},"instance":{"prefer-ip-address":true}}}
+    depends_on:
+      - eureka-server
+    restart: on-failure
+
+  user-service:
+    build:
+      context: ./user-service
+    container_name: user-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/train_booking_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=Boss@8055
+      - SPRING_APPLICATION_JSON={"spring":{"redis":{"host":"redis","port":6379}},"eureka":{"client":{"service-url":{"defaultZone":"http://eureka-server:8761/eureka/"}},"instance":{"prefer-ip-address":true}}}
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    restart: on-failure
+
+  train-service:
+    build:
+      context: ./train-service
+    container_name: train-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/train_booking_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=Boss@8055
+      - SPRING_APPLICATION_JSON={"spring":{"redis":{"host":"redis","port":6379}},"eureka":{"client":{"service-url":{"defaultZone":"http://eureka-server:8761/eureka/"}},"instance":{"prefer-ip-address":true}}}
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    restart: on-failure
+
+  booking-service:
+    build:
+      context: ./booking-service
+    container_name: booking-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/train_booking_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=Boss@8055
+      - SPRING_APPLICATION_JSON={"spring":{"redis":{"host":"redis","port":6379}},"eureka":{"client":{"service-url":{"defaultZone":"http://eureka-server:8761/eureka/"}},"instance":{"prefer-ip-address":true}}}
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    restart: on-failure
+
+  sonarqube:
+    image: sonarqube:latest
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/api/system/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+
+volumes:
+  mysql-data:
+  sonarqube-data:

@@ -1,0 +1,48 @@
+version: '3.8'
+services:
+  redis:
+    image: redis:7
+    container_name: train-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db:
+    image: mysql:8.0
+    container_name: train-mysql
+    environment:
+      MYSQL_DATABASE: train_booking_db
+      MYSQL_ROOT_PASSWORD: Boss@8055
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: train-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/train_booking_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=Boss@8055
+      - SPRING_PROFILES_ACTIVE=default
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  mysql-data:

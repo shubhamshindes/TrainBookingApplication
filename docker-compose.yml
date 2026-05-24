@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  redis:
+    image: redis:7
+    container_name: train-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: train-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_PROFILES_ACTIVE=default
+      # Use H2 in-memory for local container run so we don't need MySQL configured on host
+      - spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      - spring.datasource.username=sa
+      - spring.datasource.password=
+      - spring.datasource.driver-class-name=org.h2.Driver
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: on-failure
