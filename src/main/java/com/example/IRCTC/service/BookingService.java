@@ -11,6 +11,8 @@ import com.example.IRCTC.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -30,6 +32,7 @@ public class BookingService {
     private UserRepository userRepository;
 
     @Transactional
+    @CacheEvict(cacheNames = {"trains", "bookings"}, allEntries = true)
     public String bookTrain(Long userId, Long trainId, int seats) {
         logger.info("Processing booking request: userId={}, trainId={}, seats={}", userId, trainId, seats);
 
@@ -58,11 +61,13 @@ public class BookingService {
         return "Booking successful!";
     }
 
+    @Cacheable(cacheNames = "bookings", key = "#userId")
     public List<Bookings> getBookingsByUser(Long userId) {
         logger.info("Fetching bookings for userId={}", userId);
         return bookingsRepository.findByUserId(userId);
     }
     @Transactional
+    @CacheEvict(cacheNames = {"bookings","trains"}, allEntries = true)
     public String deleteBookingsByTrainId(Long trainId) {
         logger.info("Deleting bookings for Train ID={}", trainId);
 

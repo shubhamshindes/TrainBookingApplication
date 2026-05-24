@@ -15,7 +15,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import jakarta.annotation.PreDestroy;
 
 @SpringBootApplication
-
+@EnableCaching
 public class TrainBookingApplication {
   
     public static void main(String[] args) {
