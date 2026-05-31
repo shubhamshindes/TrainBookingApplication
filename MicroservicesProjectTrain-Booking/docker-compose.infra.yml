@@ -1,0 +1,44 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.infra.yml
+#
+# Local development infrastructure ONLY.
+# Starts MySQL 8 and Redis 7 on their standard ports.
+#
+# Usage:
+#   docker compose -f docker-compose.infra.yml up -d
+#   docker compose -f docker-compose.infra.yml down
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  redis:
+    image: redis:7-alpine
+    container_name: irctc-redis-local
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: irctc-mysql-local
+    environment:
+      MYSQL_ROOT_PASSWORD: Boss@8055
+    ports:
+      - "3306:3306"
+    volumes:
+      - irctc-mysql-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pBoss@8055"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  irctc-mysql-data:
