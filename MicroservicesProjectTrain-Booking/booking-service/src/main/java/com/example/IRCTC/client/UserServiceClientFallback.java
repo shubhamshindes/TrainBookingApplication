@@ -18,7 +18,7 @@ public class UserServiceClientFallback implements UserServiceClient {
     private static final Logger logger = LoggerFactory.getLogger(UserServiceClientFallback.class);
 
     @Override
-    public ResponseEntity<Map<String, Object>> getUserById(Long id) {
+    public ResponseEntity<Map<String, Object>> getUserById(Long id, String authorization) {
         logger.error("FALLBACK: user-service is unavailable. Cannot fetch user with id={}", id);
         return ResponseEntity.status(503).body(Map.of(
                 "error", "User service is currently unavailable. Please try again later."

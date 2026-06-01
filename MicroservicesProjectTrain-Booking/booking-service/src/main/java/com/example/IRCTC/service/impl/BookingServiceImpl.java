@@ -42,11 +42,11 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @SuppressWarnings("unchecked")
-    public String bookTrain(Long userId, Long trainId, int seatsBooked) {
+    public String bookTrain(Long userId, Long trainId, int seatsBooked, String authorization) {
         logger.info("Booking request received: userId={}, trainId={}, seatsBooked={}", userId, trainId, seatsBooked);
 
         // 1. Fetch/Sync User details via Feign Client
-        ResponseEntity<Map<String, Object>> userResponse = userServiceClient.getUserById(userId);
+        ResponseEntity<Map<String, Object>> userResponse = userServiceClient.getUserById(userId, authorization);
         if (userResponse == null || !userResponse.getStatusCode().is2xxSuccessful() || userResponse.getBody() == null) {
             throw new ResourceNotFoundException("User not found via user-service with ID: " + userId);
         }
@@ -66,7 +66,7 @@ public class BookingServiceImpl implements BookingService {
         });
 
         // 2. Fetch/Sync Train details via Feign Client
-        ResponseEntity<TrainDto> trainResponse = trainServiceClient.getTrainById(trainId);
+        ResponseEntity<TrainDto> trainResponse = trainServiceClient.getTrainById(trainId, authorization);
         if (trainResponse == null || !trainResponse.getStatusCode().is2xxSuccessful() || trainResponse.getBody() == null) {
             throw new ResourceNotFoundException("Train not found via train-service with ID: " + trainId);
         }
@@ -87,7 +87,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // 3. Update seats via Feign Client in train-service
-        ResponseEntity<Map<String, Object>> seatUpdateResponse = trainServiceClient.updateAvailableSeats(trainId, -seatsBooked);
+        ResponseEntity<Map<String, Object>> seatUpdateResponse = trainServiceClient.updateAvailableSeats(trainId, -seatsBooked, authorization);
         if (seatUpdateResponse == null || !seatUpdateResponse.getStatusCode().is2xxSuccessful()) {
             logger.warn("Seat update Feign call failed for trainId={}; rollback may be needed", trainId);
             throw new RuntimeException("Failed to update seat count via train-service");
@@ -115,7 +115,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public String deleteBookingsByTrainId(Long trainId) {
+    public String deleteBookingsByTrainId(Long trainId, String authorization) {
         logger.info("Deleting bookings for Train ID={}", trainId);
         List<Bookings> bookings = bookingsRepository.findByTrainId(trainId);
         if (bookings.isEmpty()) {
@@ -127,7 +127,7 @@ public class BookingServiceImpl implements BookingService {
         logger.info("Deleted {} bookings for Train ID={}", bookings.size(), trainId);
 
         // Restore seats via Feign
-        trainServiceClient.updateAvailableSeats(trainId, totalSeatsToRestore);
+        trainServiceClient.updateAvailableSeats(trainId, totalSeatsToRestore, authorization);
         logger.info("Restored {} seats to trainId={} via Feign", totalSeatsToRestore, trainId);
 
         return "Bookings cancelled for train successfully!";

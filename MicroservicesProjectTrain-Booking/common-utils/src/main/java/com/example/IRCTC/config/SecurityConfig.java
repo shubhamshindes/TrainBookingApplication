@@ -42,7 +42,8 @@ public class SecurityConfig {
                 .requestMatchers("/user/**", "/USER/**").hasAnyRole("USER", "ADMIN")
                 // Train endpoints
                 .requestMatchers("/trains/allTrains", "/trains/*/available-seats", "/trains/*/details").hasAnyRole("USER", "ADMIN")
-                .requestMatchers("/trains/add", "/trains/deleteTrainById/**", "/trains/*/update-seats").hasRole("ADMIN")
+                .requestMatchers("/trains/add", "/trains/deleteTrainById/**").hasRole("ADMIN")
+                .requestMatchers("/trains/*/update-seats").hasAnyRole("USER", "ADMIN")
                 // Booking endpoints
                 .requestMatchers("/bookings/**").hasAnyRole("USER", "ADMIN")
                 // Admin

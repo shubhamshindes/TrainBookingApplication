@@ -18,7 +18,7 @@ public class TrainServiceClientFallback implements TrainServiceClient {
     private static final Logger logger = LoggerFactory.getLogger(TrainServiceClientFallback.class);
 
     @Override
-    public ResponseEntity<Map<String, Object>> getTrainAvailableSeats(Long trainId) {
+    public ResponseEntity<Map<String, Object>> getTrainAvailableSeats(Long trainId, String authorization) {
         logger.error("FALLBACK: train-service is unavailable. Cannot fetch seats for trainId={}", trainId);
         return ResponseEntity.status(503).body(Map.of(
                 "error", "Train service is currently unavailable. Please try again later."
@@ -26,13 +26,13 @@ public class TrainServiceClientFallback implements TrainServiceClient {
     }
 
     @Override
-    public ResponseEntity<TrainDto> getTrainById(Long trainId) {
+    public ResponseEntity<TrainDto> getTrainById(Long trainId, String authorization) {
         logger.error("FALLBACK: train-service is unavailable. Cannot fetch train with id={}", trainId);
         return ResponseEntity.status(503).build();
     }
 
     @Override
-    public ResponseEntity<Map<String, Object>> updateAvailableSeats(Long trainId, int seats) {
+    public ResponseEntity<Map<String, Object>> updateAvailableSeats(Long trainId, int seats, String authorization) {
         logger.error("FALLBACK: train-service unavailable. Cannot update seats for trainId={}", trainId);
         return ResponseEntity.status(503).body(Map.of(
                 "error", "Train service is currently unavailable."

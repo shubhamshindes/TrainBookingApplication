@@ -3,8 +3,8 @@
     Starts the IRCTC microservices project for local development.
 
 .DESCRIPTION
-    1. Brings up MySQL + Redis via Docker (docker-compose.infra.yml)
-    2. Waits until both are healthy
+    1. Brings up MySQL + Redis + Kafka via Docker (docker-compose.infra.yml)
+    2. Waits until infrastructure is healthy
     3. Builds the entire project with Maven (skipping tests)
     4. Launches each Spring Boot service in a separate PowerShell window
 
@@ -41,16 +41,18 @@ if ($StopInfra) {
 Write-Step "Pre-flight checks"
 
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) { Write-Fail "java not found in PATH" }
-Write-OK "Java: $(java -version 2>&1 | Select-Object -First 1)"
+$javaVersion = cmd /c "java -version 2>&1" | Select-Object -First 1
+Write-OK "Java: $javaVersion"
 
 if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) { Write-Fail "mvn not found in PATH" }
-Write-OK "Maven: $(mvn -version 2>&1 | Select-Object -First 1)"
+$mavenVersion = cmd /c "mvn -version 2>&1" | Select-Object -First 1
+Write-OK "Maven: $mavenVersion"
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Write-Fail "docker not found in PATH" }
 Write-OK "Docker: $(docker --version)"
 
 # ── Start infra ───────────────────────────────────────────────────────────────
-Write-Step "Starting infrastructure (MySQL + Redis via Docker)..."
+Write-Step "Starting infrastructure (MySQL + Redis + Kafka via Docker)..."
 docker compose -f "$Root\docker-compose.infra.yml" up -d
 if ($LASTEXITCODE -ne 0) { Write-Fail "Failed to start Docker infra." }
 
@@ -70,6 +72,11 @@ while ($elapsed -lt $maxWait) {
 if (-not $ready) { Write-Fail "MySQL did not become healthy within ${maxWait}s." }
 Write-OK "MySQL is healthy."
 
+Write-Step "Ensuring MySQL databases exist..."
+docker exec irctc-mysql-local mysql -uroot -pBoss@8055 -e "CREATE DATABASE IF NOT EXISTS user_db; CREATE DATABASE IF NOT EXISTS train_db; CREATE DATABASE IF NOT EXISTS booking_db; CREATE DATABASE IF NOT EXISTS payment_db;"
+if ($LASTEXITCODE -ne 0) { Write-Fail "Failed to create required MySQL databases." }
+Write-OK "Databases ready: user_db, train_db, booking_db, payment_db."
+
 # ── Wait for Redis ────────────────────────────────────────────────────────────
 Write-Step "Waiting for Redis to become healthy..."
 $elapsed = 0
@@ -85,10 +92,26 @@ while ($elapsed -lt 60) {
 if (-not $ready) { Write-Fail "Redis did not become healthy within 60s." }
 Write-OK "Redis is healthy."
 
+# Wait for Kafka
+Write-Step "Waiting for Kafka to become healthy..."
+$elapsed = 0
+$ready   = $false
+
+while ($elapsed -lt 120) {
+    $status = docker inspect --format="{{.State.Health.Status}}" irctc-kafka-local 2>$null
+    if ($status -eq "healthy") { $ready = $true; break }
+    Write-Host "    Kafka status: $status (${elapsed}s elapsed)..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 5
+    $elapsed += 5
+}
+if (-not $ready) { Write-Fail "Kafka did not become healthy within 120s." }
+Write-OK "Kafka is healthy."
+
 if ($InfraOnly) {
     Write-Host "`nInfra-only mode. Services not started." -ForegroundColor Yellow
-    Write-Host "  MySQL  -> localhost:3306  (dbs: user_db, train_db, booking_db, user: root, pass: Boss@8055)"
+    Write-Host "  MySQL  -> localhost:3306  (dbs: user_db, train_db, booking_db, payment_db, user: root, pass: Boss@8055)"
     Write-Host "  Redis  -> localhost:6379"
+    Write-Host "  Kafka  -> localhost:9092"
     exit 0
 }
 
@@ -127,20 +150,40 @@ function Start-Service {
 
     if (-not $jar) { Write-Fail "No JAR found for $Name in $Dir\target\" }
 
-    $cmd = "java -jar `"$($jar.FullName)`""
+    $safeName = $Name.Replace("'", "''")
+    $safeJarPath = $jar.FullName.Replace("'", "''")
+    $cmd = "Write-Host '--- $safeName ---' -ForegroundColor Cyan; java -jar '$safeJarPath'"
     Write-OK "Launching $Name  ->  $($jar.Name)"
 
-    Start-Process powershell -ArgumentList `
-        "-NoExit", "-Command", `
-        "Write-Host '--- $Name ---' -ForegroundColor Cyan; $cmd"
+    Start-Process powershell -ArgumentList @(
+        "-NoExit",
+        "-ExecutionPolicy", "Bypass",
+        "-Command", $cmd
+    )
 }
 
 # ── Launch services in order ──────────────────────────────────────────────────
 Write-Step "Launching services..."
 
 Start-Service -Name "eureka-server"   -Dir "eureka-server"
-Write-Host "    Waiting 20s for Eureka to start..." -ForegroundColor DarkGray
-Start-Sleep -Seconds 20
+Write-Host "    Waiting for Eureka to start on http://localhost:8761 ..." -ForegroundColor DarkGray
+$elapsed = 0
+$ready = $false
+while ($elapsed -lt 90) {
+    try {
+        $response = Invoke-WebRequest -Uri "http://localhost:8761" -UseBasicParsing -TimeoutSec 5
+        if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+            $ready = $true
+            break
+        }
+    } catch {
+        Write-Host "    Eureka not ready yet (${elapsed}s elapsed)..." -ForegroundColor DarkGray
+    }
+    Start-Sleep -Seconds 5
+    $elapsed += 5
+}
+if (-not $ready) { Write-Fail "Eureka did not start within 90s. Check the eureka-server PowerShell window for errors." }
+Write-OK "Eureka is running."
 
 Start-Service -Name "api-gateway"     -Dir "api-gateway"
 Start-Sleep -Seconds 5
@@ -148,6 +191,8 @@ Start-Sleep -Seconds 5
 Start-Service -Name "user-service"    -Dir "user-service"
 Start-Service -Name "train-service"   -Dir "train-service"
 Start-Service -Name "booking-service" -Dir "booking-service"
+Start-Service -Name "payment-service" -Dir "payment-service"
+Start-Service -Name "notification-service" -Dir "notification-service"
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 Write-Host ""
@@ -158,6 +203,8 @@ Write-Host "  API Gateway       -> http://localhost:8080" -ForegroundColor Green
 Write-Host "  user-service      -> http://localhost:8081" -ForegroundColor Green
 Write-Host "  train-service     -> http://localhost:8082" -ForegroundColor Green
 Write-Host "  booking-service   -> http://localhost:8083" -ForegroundColor Green
+Write-Host "  payment-service   -> http://localhost:8084" -ForegroundColor Green
+Write-Host "  notification-service -> http://localhost:8085 (Kafka consumer, no REST API)" -ForegroundColor Green
 Write-Host "=========================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  To stop infrastructure containers later, run:" -ForegroundColor DarkGray

@@ -21,7 +21,9 @@ public class BookingController {
     private BookingService bookingService;
 
     @PostMapping("/book")
-    public ResponseEntity<Map<String, Object>> bookTrain(@RequestBody Map<String, Object> requestData) {
+    public ResponseEntity<Map<String, Object>> bookTrain(
+            @RequestBody Map<String, Object> requestData,
+            @RequestHeader("Authorization") String authorization) {
         logger.info("Received booking request: {}", requestData);
 
         if (!requestData.containsKey("userId") || requestData.get("userId") == null ||
@@ -35,7 +37,7 @@ public class BookingController {
         Long trainId = ((Number) requestData.get("trainId")).longValue();
         int seatsBooked = ((Number) requestData.get("seatsBooked")).intValue();
 
-        String result = bookingService.bookTrain(userId, trainId, seatsBooked);
+        String result = bookingService.bookTrain(userId, trainId, seatsBooked, authorization);
         logger.info("Booking successful for userId={}, trainId={}", userId, trainId);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", result));
@@ -62,10 +64,12 @@ public class BookingController {
     }
 
     @DeleteMapping("/delete/train/{trainId}")
-    public ResponseEntity<Map<String, Object>> deleteBookingsByTrainId(@PathVariable Long trainId) {
+    public ResponseEntity<Map<String, Object>> deleteBookingsByTrainId(
+            @PathVariable Long trainId,
+            @RequestHeader("Authorization") String authorization) {
         logger.info("Received request to delete bookings for Train ID={}", trainId);
 
-        String result = bookingService.deleteBookingsByTrainId(trainId);
+        String result = bookingService.deleteBookingsByTrainId(trainId, authorization);
         Map<String, Object> response = new HashMap<>();
         response.put("message", result);
 

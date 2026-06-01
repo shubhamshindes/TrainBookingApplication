@@ -1,0 +1,601 @@
+{
+  "info": {
+    "_postman_id": "73c34005-8ac7-4d45-8a2c-44995a13d1f1",
+    "name": "IRCTC Train Booking Microservices",
+    "description": "Local Postman collection for the Train Booking microservices. Use the included environment and run requests through the API Gateway on port 8080.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "username",
+      "value": "aarav_sharma"
+    },
+    {
+      "key": "email",
+      "value": "aarav.sharma@example.com"
+    },
+    {
+      "key": "password",
+      "value": "Password@123"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "00 - Health",
+      "item": [
+        {
+          "name": "Public Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/public/health-check",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "public",
+                "health-check"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Auth",
+      "item": [
+        {
+          "name": "Signup New User",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = Date.now();",
+                  "pm.collectionVariables.set('username', `aarav_sharma_${suffix}`);",
+                  "pm.collectionVariables.set('email', `aarav.sharma.${suffix}@example.com`);",
+                  "pm.collectionVariables.set('password', 'Password@123');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Passenger profile created', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('user_id', json.userId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_base_url}}/public/signup",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "public",
+                "signup"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login returned token text', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "  pm.expect(pm.response.text()).to.not.be.empty;",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set('jwt_token', pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_base_url}}/public/login",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "public",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Promote Current User To Admin",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roles\": [\"ADMIN\"]\n}"
+            },
+            "url": {
+              "raw": "{{gateway_base_url}}/user/update/{{user_id}}",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "user",
+                "update",
+                "{{user_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login Again After Role Change",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Admin login returned token text', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set('jwt_token', pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_base_url}}/public/login",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "public",
+                "login"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Users",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/user/getAllUsers",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "user",
+                "getAllUsers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/user/getUserById/{{user_id}}",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "user",
+                "getUserById",
+                "{{user_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update User Email",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"updated_{{email}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_base_url}}/user/update/{{user_id}}",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "user",
+                "update",
+                "{{user_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete User By ID",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/user/deleteUserById/{{user_id}}",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "user",
+                "deleteUserById",
+                "{{user_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Trains",
+      "item": [
+        {
+          "name": "Add Train",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Train route created', function () {",
+                  "  pm.expect(pm.response.code).to.eql(201);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('train_id', json.trainId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Deccan Queen Express\",\n  \"source\": \"Mumbai\",\n  \"destination\": \"Pune\",\n  \"availableSeats\": 120\n}"
+            },
+            "url": {
+              "raw": "{{gateway_base_url}}/trains/add",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "trains",
+                "add"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Trains",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/trains/allTrains",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "trains",
+                "allTrains"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Available Seats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/trains/{{train_id}}/available-seats",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "trains",
+                "{{train_id}}",
+                "available-seats"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Train Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/trains/{{train_id}}/details",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "trains",
+                "{{train_id}}",
+                "details"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Train Seats",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/trains/{{train_id}}/update-seats?seats=5",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "trains",
+                "{{train_id}}",
+                "update-seats"
+              ],
+              "query": [
+                {
+                  "key": "seats",
+                  "value": "5"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Train By ID",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/trains/deleteTrainById/{{train_id}}",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "trains",
+                "deleteTrainById",
+                "{{train_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Bookings",
+      "item": [
+        {
+          "name": "Book Train",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{user_id}},\n  \"trainId\": {{train_id}},\n  \"seatsBooked\": 2\n}"
+            },
+            "url": {
+              "raw": "{{gateway_base_url}}/bookings/book",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "bookings",
+                "book"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Bookings By User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.bookings && json.bookings.length > 0) {",
+                  "    pm.environment.set('booking_id', json.bookings[0].bookingId);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/bookings/user/{{user_id}}",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "bookings",
+                "user",
+                "{{user_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Bookings By Train",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/bookings/delete/train/{{train_id}}",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "bookings",
+                "delete",
+                "train",
+                "{{train_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Payments",
+      "item": [
+        {
+          "name": "Charge Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": {{booking_id}},\n  \"amount\": 499.00\n}"
+            },
+            "url": {
+              "raw": "{{gateway_base_url}}/payments/charge",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "payments",
+                "charge"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refund Booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/payments/refund/{{booking_id}}",
+              "host": [
+                "{{gateway_base_url}}"
+              ],
+              "path": [
+                "payments",
+                "refund",
+                "{{booking_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
