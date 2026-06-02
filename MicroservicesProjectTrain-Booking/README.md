@@ -1,6 +1,6 @@
 # IRCTC Microservices — Local Development Guide
 
-A Spring Boot microservices application for train booking (IRCTC-style), built with Java 17, Spring Cloud, MySQL, and Redis.
+A Spring Boot microservices application for train booking (IRCTC-style), built with Java 17, Spring Cloud, MySQL, Redis, and Apache Kafka, with integrated monitoring (Prometheus, Grafana, Zipkin, SonarQube).
 
 ---
 
@@ -8,26 +8,41 @@ A Spring Boot microservices application for train booking (IRCTC-style), built w
 
 ```
                         ┌──────────────────┐
-    Client              │   API Gateway    │  :8080
-    ───────────────────▶│  (Spring Cloud)  │
+     Client              │   API Gateway    │  :8080
+     ───────────────────▶│  (Spring Cloud)  │
                         └────────┬─────────┘
                                  │ routes via Eureka
-              ┌──────────────────┼──────────────────┐
-              ▼                  ▼                   ▼
-      ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐
-      │ user-service │  │train-service │  │ booking-service  │
-      │    :8081     │  │    :8082     │  │     :8083        │
-      └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘
-             │                 │                    │
-             └─────────────────┼────────────────────┘
-                               ▼
-                   ┌───────────────────────┐
-                   │  MySQL :3306  +        │
-                   │  Redis :6379           │
-                   └───────────────────────┘
+         ┌───────────────────────┼───────────────────────┬───────────────────────┐
+         ▼                       ▼                       ▼                       ▼
+ ┌──────────────┐        ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
+ │ user-service │        │train-service │        │booking-service│       │payment-service│
+ │    :8081     │        │    :8082     │        │    :8083     │        │    :8084     │
+ └──────┬───────┘        └──────┬───────┘        └──────┬───────┘        └──────┬───────┘
+        │                       │                       │                       │
+        ▼                       ▼                       ▼                       ▼
+ ┌──────────────┐        ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
+ │   user_db    │        │   train_db   │        │  booking_db  │        │  payment_db  │
+ └──────┬───────┘        └──────┬───────┘        └──────┬───────┘        └──────┬───────┘
+        │                       │                       │                       │
+        └───────────────────────┴─────────┬─────────────┴───────────────────────┘
+                                          │
+                                          ▼ Shared Infrastructure
+                                ┌──────────────────┐
+                                │   Redis :6379    │
+                                └──────────────────┘
 
-      Eureka Server (Service Discovery) :8761
+                                        │ Kafka Events
+                                        ▼
+                               ┌──────────────────┐
+                               │notification-serv.│ :8085
+                               └──────────────────┘
 ```
+
+- **Service Discovery**: Eureka Server (`:8761`)
+- **API Gateway**: Spring Cloud Gateway (`:8080`)
+- **Event Streaming**: Apache Kafka (`:9092`) & Zookeeper (`:2181`)
+- **Metrics & Observability**: Prometheus (`:9090`), Grafana (`:3000`), and Zipkin (`:9411`)
+- **Code Quality**: SonarQube (`:9000`)
 
 ---
 
@@ -52,20 +67,20 @@ Open PowerShell **as Administrator** in the project root and run:
 ```
 
 This will:
-1. Pull and start **MySQL 8** + **Redis 7** Docker containers
-2. Wait until both are healthy
-3. Build the project with Maven (skipping tests)
-4. Launch each service in its own terminal window
+1. Pull and start infrastructure containers (**MySQL 8**, **Redis 7**, **Kafka/Zookeeper**, **Prometheus/Grafana**, **Zipkin**, **SonarQube**).
+2. Wait until MySQL and Redis are healthy.
+3. Build the project with Maven (skipping tests).
+4. Launch each service in its own terminal window.
 
 ### Option B — Manual step-by-step
 
 #### 1. Start infrastructure
 
 ```powershell
-docker compose -f docker-compose.infra.yml up -d
+docker compose up -d
 ```
 
-Wait ~30 seconds for MySQL to initialise.
+Wait ~30 seconds for MySQL and Kafka to initialise.
 
 #### 2. Build the shared library
 
@@ -98,20 +113,32 @@ java -jar train-service/target/train-service-0.0.1-SNAPSHOT.jar
 
 # Terminal 5 — Booking Service
 java -jar booking-service/target/booking-service-0.0.1-SNAPSHOT.jar
+
+# Terminal 6 — Payment Service
+java -jar payment-service/target/payment-service-0.0.1-SNAPSHOT.jar
+
+# Terminal 7 — Notification Service
+java -jar notification-service/target/notification-service-0.0.1-SNAPSHOT.jar
 ```
 
 ---
 
-## Service Endpoints
+## Service Endpoints & Tools
 
-| Service | Local URL | Purpose |
+| Service / Tool | Local URL | Purpose |
 |---|---|---|
-| Eureka Dashboard | http://localhost:8761 | Service registry UI |
-| API Gateway | http://localhost:8080 | All external requests go here |
-| user-service | http://localhost:8081 | Direct access (dev only) |
-| train-service | http://localhost:8082 | Direct access (dev only) |
-| booking-service | http://localhost:8083 | Direct access (dev only) |
-| Booking Swagger UI | http://localhost:8083/swagger-ui/index.html | OpenAPI docs |
+| **Eureka Dashboard** | http://localhost:8761 | Service registry UI |
+| **API Gateway** | http://localhost:8080 | All external requests go here |
+| **user-service** | http://localhost:8081 | User signup, login, profile management |
+| **train-service** | http://localhost:8082 | Train schedules & search |
+| **booking-service** | http://localhost:8083 | Handles ticket bookings |
+| **payment-service** | http://localhost:8084 | Processes transactions and issues events |
+| **notification-service**| http://localhost:8085 | Consumes Kafka events to send notifications |
+| **SonarQube Dashboard**| http://localhost:9000 | Code quality and code coverage dashboard |
+| **Prometheus** | http://localhost:9090 | Metrics collection scraper |
+| **Grafana** | http://localhost:3000 | Metrics dashboard |
+| **Zipkin** | http://localhost:9411 | Distributed tracing UI |
+| **Booking Swagger UI** | http://localhost:8083/swagger-ui/index.html | OpenAPI docs |
 
 ### API Routes (via Gateway :8080)
 
@@ -125,48 +152,31 @@ java -jar booking-service/target/booking-service-0.0.1-SNAPSHOT.jar
 
 ---
 
-## Database
+## Database Configuration
+
+The application uses **MySQL 8** with decoupled databases for each microservice to enforce the Database-per-Service pattern.
 
 - **Host**: `localhost:3306`
-- **Database**: `train_booking_db`
 - **Username**: `root`
 - **Password**: `Boss@8055`
-- **Schema management**: Hibernate `ddl-auto=update` (tables created automatically on first run)
+- **Databases**:
+  - `user_db` (for user-service)
+  - `train_db` (for train-service)
+  - `booking_db` (for booking-service)
+  - `payment_db` (for payment-service)
+- **Schema management**: Hibernate `ddl-auto=update` (tables created automatically on first run via `init.sql`)
 
 ---
 
 ## Stopping Everything
 
 ```powershell
-# Stop infra containers (MySQL + Redis)
+# Stop infra containers (including DBs, Redis, Kafka, and Monitoring tools)
 .\start-local.ps1 -StopInfra
 
 # Or manually
-docker compose -f docker-compose.infra.yml down
+docker compose down
 ```
-
----
-
-## Useful Script Flags
-
-```powershell
-.\start-local.ps1                  # Full startup (build + infra + services)
-.\start-local.ps1 -SkipBuild      # Skip Maven build (use existing JARs)
-.\start-local.ps1 -InfraOnly      # Start only MySQL + Redis (no Spring services)
-.\start-local.ps1 -StopInfra      # Stop and remove infra containers
-```
-
----
-
-## Running with Full Docker (CI / Production-like)
-
-To run everything in Docker containers (including the Spring Boot services):
-
-```powershell
-docker compose up --build
-```
-
-> ⚠️ This builds Docker images for every service — takes longer but mirrors production.
 
 ---
 
@@ -180,3 +190,5 @@ docker compose up --build
 | `user-service` | Registration, login, JWT issuance, user profile |
 | `train-service` | Train CRUD and availability data |
 | `booking-service` | Booking creation/cancellation; calls train-service via Feign |
+| `payment-service` | Payment processing, integrated with Kafka to produce payment events |
+| `notification-service`| Listens to Kafka topics to send notifications to users |

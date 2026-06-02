@@ -37,7 +37,7 @@ public class SecurityConfig {
                 // Public endpoints
                 .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
                 // User endpoints
                 .requestMatchers("/user/**", "/USER/**").hasAnyRole("USER", "ADMIN")
                 // Train endpoints
