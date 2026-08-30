@@ -1,6 +1,7 @@
 package com.example.IRCTC.service.impl;
 
 import com.example.IRCTC.entity.User;
+import com.example.IRCTC.enums.Role;
 import com.example.IRCTC.exceptions.UserNotFoundException;
 import com.example.IRCTC.repository.UserRepository;
 import com.example.IRCTC.service.UserService;
@@ -11,6 +12,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +59,7 @@ public class UserServiceImpl implements UserService {
     public User saveNewUser(User user) {
         logger.info("Saving new user: {}", user.getUserName());
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setRoles(Arrays.asList("USER"));
+        user.setRoles(Arrays.asList(Role.USER));
         User savedUser = userRepository.save(user);
         logger.info("User saved successfully: {}", user.getUserName());
         return savedUser;
@@ -106,8 +108,16 @@ public class UserServiceImpl implements UserService {
                     break;
                 case "roles":
                     if (value instanceof List) {
-                        logger.info("Updating roles from {} to {}", userInDb.getRoles(), value);
-                        userInDb.setRoles((List<String>) value);
+                        List<Role> updatedRoles = new ArrayList<>();
+                        for (Object roleValue : (List<?>) value) {
+                            if (roleValue instanceof String roleString) {
+                                updatedRoles.add(Role.valueOf(roleString.toUpperCase()));
+                            } else if (roleValue instanceof Role) {
+                                updatedRoles.add((Role) roleValue);
+                            }
+                        }
+                        logger.info("Updating roles from {} to {}", userInDb.getRoles(), updatedRoles);
+                        userInDb.setRoles(updatedRoles);
                     }
                     break;
                 default:

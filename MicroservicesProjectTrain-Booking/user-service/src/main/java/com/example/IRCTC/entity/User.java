@@ -1,10 +1,18 @@
 package com.example.IRCTC.entity;
 
 import java.util.List;
+
+import com.example.IRCTC.enums.Role;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 
 @Entity
@@ -16,13 +24,18 @@ public class User {
     private String userName;
     private String email;
     private String password;
-    private List<String> roles;
-    
+
+    @ElementCollection(targetClass = Role.class)
+    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role")
+    private List<Role> roles;
+
     public User() {
         super();
     }
 
-    public User(Long id, String userName, String email, List<String> roles, String password) {
+    public User(Long id, String userName, String email, List<Role> roles, String password) {
         this.id = id;
         this.userName = userName;
         this.email = email;
@@ -62,11 +75,11 @@ public class User {
         this.password = password;
     }
 
-    public List<String> getRoles() {
+    public List<Role> getRoles() {
         return roles;
     }
 
-    public void setRoles(List<String> roles) {
+    public void setRoles(List<Role> roles) {
         this.roles = roles;
     }
 }
