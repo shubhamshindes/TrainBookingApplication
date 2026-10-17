@@ -75,4 +75,22 @@ public class PublicController {
             return new ResponseEntity<>("Incorrect username or password", HttpStatus.BAD_REQUEST);
         }
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String newPassword = request.get("newPassword");
+
+        if (email == null || email.isBlank() || newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email and new password are required"));
+        }
+
+        boolean updated = userService.resetPasswordByEmail(email, newPassword);
+        if (!updated) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "User not found for the provided email"));
+        }
+
+        return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
+    }
 }

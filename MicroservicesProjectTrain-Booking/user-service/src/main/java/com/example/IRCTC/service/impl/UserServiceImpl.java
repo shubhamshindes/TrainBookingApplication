@@ -51,6 +51,12 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Optional<User> findByEmail(String email) {
+        logger.info("Fetching user with email: {}", email);
+        return userRepository.findByEmail(email);
+    }
+
+    @Override
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
     }
@@ -129,5 +135,25 @@ public class UserServiceImpl implements UserService {
         userRepository.save(userInDb);
         logger.info("User with ID {} updated successfully", id);
         return "User updated successfully";
+    }
+
+    @Override
+    public boolean resetPasswordByEmail(String email, String newPassword) {
+        if (email == null || email.isBlank() || newPassword == null || newPassword.isBlank()) {
+            logger.warn("Password reset rejected: email or new password is blank");
+            return false;
+        }
+
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+        if (optionalUser.isEmpty()) {
+            logger.warn("Password reset failed: no user found for email {}", email);
+            return false;
+        }
+
+        User user = optionalUser.get();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        logger.info("Password reset successful for email {}", email);
+        return true;
     }
 }
