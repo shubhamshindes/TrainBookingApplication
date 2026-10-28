@@ -2,6 +2,7 @@ package com.example.IRCTC.entity;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.example.IRCTC.enums.Role;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
@@ -21,8 +22,10 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "user_name", nullable = false, unique = true)
     private String userName;
     private String email;
+    @JsonIgnore
     private String password;
 
     @ElementCollection(targetClass = Role.class)

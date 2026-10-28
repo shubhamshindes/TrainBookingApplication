@@ -3,6 +3,7 @@ package com.example.IRCTC.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.IRCTC.entity.User;
+import com.example.IRCTC.dto.UserRequestDto;
 import com.example.IRCTC.service.UserService;
 import com.example.IRCTC.service.UserDetailsServiceImpl;
 import com.example.IRCTC.utils.JwtUtil;
@@ -44,13 +46,34 @@ public class PublicController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<Map<String, Object>> signup(@RequestBody User user) {
-        if (userService.existsByEmail(user.getEmail())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(Map.of("message", "User already exists in the database"));
+    public ResponseEntity<Map<String, Object>> signup(@RequestBody UserRequestDto request) {
+        if (request.getUserName() == null || request.getUserName().isBlank()
+                || request.getEmail() == null || request.getEmail().isBlank()
+                || request.getPassword() == null || request.getPassword().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Username, email, and password are required"));
         }
 
-        User savedUser = userService.saveNewUser(user);
+        String userName = request.getUserName().trim();
+        if (userService.existsByUserName(userName)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "Username is already taken"));
+        }
+        if (userService.existsByEmail(request.getEmail())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "Email is already registered"));
+        }
+
+        User user = new User();
+        user.setUserName(userName);
+        user.setEmail(request.getEmail().trim());
+        user.setPassword(request.getPassword());
+        User savedUser;
+        try {
+            savedUser = userService.saveNewUser(user);
+        } catch (DataIntegrityViolationException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "Username or email is already registered"));
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("message", "User registered successfully");
@@ -60,7 +83,7 @@ public class PublicController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody User user) {
+    public ResponseEntity<String> login(@RequestBody UserRequestDto user) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(user.getUserName(), user.getPassword()));

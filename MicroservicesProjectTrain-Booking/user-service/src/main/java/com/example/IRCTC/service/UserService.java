@@ -9,6 +9,8 @@ public interface UserService {
     List<User> getAllUsers();
     Optional<User> getUserById(Long id);
     User findByUserName(String userName);
+    boolean existsByUserName(String userName);
+    boolean existsByUserNameAndIdNot(String userName, Long id);
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
     User saveNewUser(User user);

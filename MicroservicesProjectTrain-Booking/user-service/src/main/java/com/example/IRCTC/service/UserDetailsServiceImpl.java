@@ -21,7 +21,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<User> userOptional = userRepository.findByUserName(username);
+        Optional<User> userOptional = userRepository.findByUserNameIgnoreCase(username.trim());
 
         if (userOptional.isPresent()) {
             User user = userOptional.get();
@@ -30,6 +30,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                             .map(Role::name)
                             .collect(Collectors.toList())
                             .toArray(new String[0]);
+//            Roles null असतील → new String[0] return होईल, म्हणजे zero elements असलेला String array [].
+//				Roles null नसतील → colon (:) नंतरचा code execute होईल. 	हे null असल्यामुळे होणारा NullPointerException टाळण्यासाठी आहे.
             return org.springframework.security.core.userdetails.User.builder()
                     .username(user.getUserName())
                     .password(user.getPassword())

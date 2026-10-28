@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -43,11 +44,21 @@ public class UserServiceImpl implements UserService {
     @Override
     public User findByUserName(String userName) {
         logger.info("Fetching user with username: {}", userName);
-        return userRepository.findByUserName(userName)
+        return userRepository.findByUserNameIgnoreCase(userName.trim())
                 .orElseThrow(() -> {
                     logger.error("User not found with username: {}", userName);
                     return new UserNotFoundException("User not found with username: " + userName);
                 });
+    }
+
+    @Override
+    public boolean existsByUserName(String userName) {
+        return userRepository.existsByUserNameIgnoreCase(userName);
+    }
+
+    @Override
+    public boolean existsByUserNameAndIdNot(String userName, Long id) {
+        return userRepository.existsByUserNameIgnoreCaseAndIdNot(userName, id);
     }
 
     @Override
@@ -63,6 +74,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User saveNewUser(User user) {
+        user.setUserName(user.getUserName().trim().toLowerCase(Locale.ROOT));
         logger.info("Saving new user: {}", user.getUserName());
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setRoles(Arrays.asList(Role.USER));
@@ -101,8 +113,16 @@ public class UserServiceImpl implements UserService {
         updates.forEach((key, value) -> {
             switch (key) {
                 case "userName":
-                    logger.info("Updating userName from {} to {}", userInDb.getUserName(), value);
-                    userInDb.setUserName((String) value);
+                    String updatedUserName = ((String) value).trim().toLowerCase(Locale.ROOT);
+                    if (updatedUserName.isBlank()) {
+                        throw new IllegalArgumentException("Username must not be blank");
+                    }
+                    if (!updatedUserName.equalsIgnoreCase(userInDb.getUserName())
+                            && userRepository.existsByUserNameIgnoreCaseAndIdNot(updatedUserName, id)) {
+                        throw new IllegalArgumentException("Username is already taken");
+                    }
+                    logger.info("Updating userName from {} to {}", userInDb.getUserName(), updatedUserName);
+                    userInDb.setUserName(updatedUserName);
                     break;
                 case "email":
                     logger.info("Updating email from {} to {}", userInDb.getEmail(), value);

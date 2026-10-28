@@ -7,7 +7,9 @@ import com.example.IRCTC.entity.User;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    Optional<User> findByUserName(String userName);
+    Optional<User> findByUserNameIgnoreCase(String userName);
+    boolean existsByUserNameIgnoreCase(String userName);
+    boolean existsByUserNameIgnoreCaseAndIdNot(String userName, Long id);
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
 }

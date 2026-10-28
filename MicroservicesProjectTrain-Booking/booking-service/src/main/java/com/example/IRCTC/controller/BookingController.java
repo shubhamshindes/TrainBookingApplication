@@ -1,5 +1,6 @@
 package com.example.IRCTC.controller;
 
+import com.example.IRCTC.dto.BookingRequestDto;
 import com.example.IRCTC.entity.Bookings;
 import com.example.IRCTC.service.BookingService;
 import org.slf4j.Logger;
@@ -22,20 +23,17 @@ public class BookingController {
 
     @PostMapping("/book")
     public ResponseEntity<Map<String, Object>> bookTrain(
-            @RequestBody Map<String, Object> requestData,
+            @RequestBody BookingRequestDto request,
             @RequestHeader("Authorization") String authorization) {
-        logger.info("Received booking request: {}", requestData);
+        logger.info("Received booking request: {}", request);
 
-        if (!requestData.containsKey("userId") || requestData.get("userId") == null ||
-                !requestData.containsKey("trainId") || requestData.get("trainId") == null ||
-                !requestData.containsKey("seatsBooked") || requestData.get("seatsBooked") == null) {
-
+        if (request == null || request.getUserId() == null || request.getTrainId() == null || request.getSeatsBooked() == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid request. userId, trainId, and seatsBooked are required."));
         }
 
-        Long userId = ((Number) requestData.get("userId")).longValue();
-        Long trainId = ((Number) requestData.get("trainId")).longValue();
-        int seatsBooked = ((Number) requestData.get("seatsBooked")).intValue();
+        Long userId = request.getUserId();
+        Long trainId = request.getTrainId();
+        int seatsBooked = request.getSeatsBooked();
 
         String result = bookingService.bookTrain(userId, trainId, seatsBooked, authorization);
         logger.info("Booking successful for userId={}, trainId={}", userId, trainId);
