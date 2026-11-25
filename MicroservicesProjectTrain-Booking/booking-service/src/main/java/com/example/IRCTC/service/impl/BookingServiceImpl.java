@@ -42,8 +42,15 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @SuppressWarnings("unchecked")
-    public String bookTrain(Long userId, Long trainId, int seatsBooked, String authorization) {
+    public String bookTrain(Long userId, Long trainId, int seatsBooked, String authorization,
+                            String principalName, boolean admin) {
         logger.info("Booking request received: userId={}, trainId={}, seatsBooked={}", userId, trainId, seatsBooked);
+        if (userId == null || userId <= 0 || trainId == null || trainId <= 0) {
+            throw new IllegalArgumentException("Valid userId and trainId are required");
+        }
+        if (seatsBooked < 1) {
+            throw new IllegalArgumentException("At least one seat must be booked");
+        }
 
         // 1. Fetch/Sync User details via Feign Client
         ResponseEntity<Map<String, Object>> userResponse = userServiceClient.getUserById(userId, authorization);
@@ -53,6 +60,10 @@ public class BookingServiceImpl implements BookingService {
         Map<String, Object> userData = (Map<String, Object>) userResponse.getBody().get("data");
         if (userData == null) {
             throw new ResourceNotFoundException("User data not found for ID: " + userId);
+        }
+        String requestedUserName = (String) userData.get("userName");
+        if (!admin && (principalName == null || !principalName.equalsIgnoreCase(requestedUserName))) {
+            throw new org.springframework.security.access.AccessDeniedException("You cannot create bookings for another user");
         }
 
         // Upsert user locally in booking_db
@@ -109,8 +120,19 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public List<Bookings> getBookingsByUser(Long userId) {
+    public List<Bookings> getBookingsByUser(Long userId, String authorization, String principalName, boolean admin) {
         logger.info("Fetching bookings for userId={}", userId);
+        if (!admin) {
+            ResponseEntity<Map<String, Object>> userResponse = userServiceClient.getUserById(userId, authorization);
+            if (userResponse == null || userResponse.getBody() == null) {
+                throw new ResourceNotFoundException("User not found with ID: " + userId);
+            }
+            Map<String, Object> userData = (Map<String, Object>) userResponse.getBody().get("data");
+            String requestedUserName = userData == null ? null : (String) userData.get("userName");
+            if (principalName == null || !principalName.equalsIgnoreCase(requestedUserName)) {
+                throw new org.springframework.security.access.AccessDeniedException("You cannot view another user's bookings");
+            }
+        }
         return bookingsRepository.findByUserId(userId);
     }
 
@@ -131,5 +153,29 @@ public class BookingServiceImpl implements BookingService {
         logger.info("Restored {} seats to trainId={} via Feign", totalSeatsToRestore, trainId);
 
         return "Bookings cancelled for train successfully!";
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public String cancelBooking(Long bookingId, String authorization, String principalName, boolean admin) {
+        if (bookingId == null || bookingId <= 0) {
+            throw new IllegalArgumentException("A valid bookingId is required");
+        }
+        Bookings booking = bookingsRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
+
+        if (!admin && (principalName == null
+                || !principalName.equalsIgnoreCase(booking.getUser().getUserName()))) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "You cannot cancel another user's booking");
+        }
+
+        Train train = booking.getTrain();
+        bookingsRepository.delete(booking);
+        trainServiceClient.updateAvailableSeats(
+                train.getId(), booking.getSeatsBooked(), authorization);
+        logger.info("Cancelled bookingId={} and restored {} seats to trainId={}",
+                bookingId, booking.getSeatsBooked(), train.getId());
+        return "Booking cancelled successfully!";
     }
 }

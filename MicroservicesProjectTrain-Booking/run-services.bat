@@ -1,6 +1,11 @@
 @echo off
 echo Starting all IRCTC Microservices...
 
+if not defined APP_SECURITY_JWT_SECRET (
+  for /f "delims=" %%K in ('powershell -NoProfile -Command "$bytes = New-Object byte[] 32; $rng = [Security.Cryptography.RandomNumberGenerator]::Create(); try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }; [Convert]::ToBase64String($bytes)"') do set "APP_SECURITY_JWT_SECRET=%%K"
+  echo Generated a temporary JWT signing key for this local run.
+)
+
 echo Starting Eureka Server...
 start "Eureka Server" cmd /k "java -jar eureka-server\target\eureka-server-0.0.1-SNAPSHOT.jar"
 timeout /t 15

@@ -9,4 +9,5 @@ public interface TrainService {
     Train getTrainById(Long trainId);
     void deleteTrainById(Long id);
     void updateSeats(Long trainId, int seats);
+    Train updateTrain(Long trainId, Train updates);
 }

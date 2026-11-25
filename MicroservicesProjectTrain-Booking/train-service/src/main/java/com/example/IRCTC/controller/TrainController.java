@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.example.IRCTC.entity.Train;
 import com.example.IRCTC.service.TrainService;
+import org.springframework.beans.factory.annotation.Value;
 
 @RestController
 @RequestMapping("/trains")
@@ -20,6 +21,8 @@ public class TrainController {
 
     @Autowired
     private TrainService trainService;
+    @Value("${APP_INTERNAL_SERVICE_TOKEN:local-internal-token-change-me}")
+    private String internalServiceToken;
 
     private static final Logger logger = LoggerFactory.getLogger(TrainController.class);
 
@@ -47,6 +50,17 @@ public class TrainController {
         trainService.deleteTrainById(id);
 
         return ResponseEntity.ok(Map.of("message", "Train deleted successfully."));
+    }
+
+    @PutMapping("/{trainId}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> updateTrain(
+            @PathVariable Long trainId, @RequestBody Train train) {
+        Train saved = trainService.updateTrain(trainId, train);
+        return ResponseEntity.ok(Map.of(
+                "message", "Train updated successfully.",
+                "trainId", saved.getId()
+        ));
     }
 
     @PostMapping("/add")
@@ -91,7 +105,11 @@ public class TrainController {
     @PutMapping("/{trainId}/update-seats")
     public ResponseEntity<Map<String, Object>> updateAvailableSeats(
             @PathVariable Long trainId,
-            @RequestParam int seats) {
+            @RequestParam int seats,
+            @RequestHeader(value = "X-Internal-Service-Token", required = false) String serviceToken) {
+        if (serviceToken == null || !serviceToken.equals(internalServiceToken)) {
+            throw new com.example.IRCTC.exceptions.UnauthorizedException("Internal service authentication required");
+        }
         logger.info("Updating seats for trainId={} by delta={}", trainId, seats);
         trainService.updateSeats(trainId, seats);
         return ResponseEntity.ok(Map.of(

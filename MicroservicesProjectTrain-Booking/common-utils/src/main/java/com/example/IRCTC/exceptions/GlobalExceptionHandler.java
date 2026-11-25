@@ -1,136 +1,55 @@
 package com.example.IRCTC.exceptions;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.WebRequest;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleUserNotFoundException(UserNotFoundException ex, WebRequest request) {
-        logger.error("User not found error: {}", ex.getMessage());
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", ex.getMessage());
-        response.put("status", HttpStatus.NOT_FOUND.value());
-        response.put("error", "User Not Found");
-        response.put("timestamp", System.currentTimeMillis());
-
-        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    @ExceptionHandler({UserNotFoundException.class, ResourceNotFoundException.class, TrainNotFoundException.class})
+    public ResponseEntity<ErrorResponse> handleNotFound(RuntimeException exception, HttpServletRequest request) {
+        return error(HttpStatus.NOT_FOUND, exception.getMessage(), request);
     }
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleResourceNotFoundException(ResourceNotFoundException ex, WebRequest request) {
-        logger.error("Resource not found error: {}", ex.getMessage());
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", ex.getMessage());
-        response.put("status", HttpStatus.NOT_FOUND.value());
-        response.put("error", "Resource Not Found");
-        response.put("timestamp", System.currentTimeMillis());
-        
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    }
-
-    @ExceptionHandler(TrainNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleTrainNotFoundException(TrainNotFoundException ex, WebRequest request) {
-        logger.error("Train not found error: {}", ex.getMessage());
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", ex.getMessage());
-        response.put("status", HttpStatus.NOT_FOUND.value());
-        response.put("error", "Train Not Found");
-        response.put("timestamp", System.currentTimeMillis());
-        
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    }
-
-    @ExceptionHandler(InvalidBookingException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidBookingException(InvalidBookingException ex, WebRequest request) {
-        logger.error("Invalid booking error: {}", ex.getMessage());
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", ex.getMessage());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Invalid Booking");
-        response.put("timestamp", System.currentTimeMillis());
-        
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-    }
-
-    @ExceptionHandler(InvalidRoleException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidRoleException(InvalidRoleException ex, WebRequest request) {
-        logger.error("Invalid role error: {}", ex.getMessage());
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", ex.getMessage());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Invalid Role");
-        response.put("timestamp", System.currentTimeMillis());
-        
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    @ExceptionHandler({InvalidBookingException.class, InvalidRoleException.class, IllegalArgumentException.class})
+    public ResponseEntity<ErrorResponse> handleBadRequest(RuntimeException exception, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
     }
 
     @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<Map<String, Object>> handleUnauthorizedException(UnauthorizedException ex, WebRequest request) {
-        logger.error("Unauthorized error: {}", ex.getMessage());
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", ex.getMessage());
-        response.put("status", HttpStatus.UNAUTHORIZED.value());
-        response.put("error", "Unauthorized");
-        response.put("timestamp", System.currentTimeMillis());
-        
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException exception, HttpServletRequest request) {
+        return error(HttpStatus.UNAUTHORIZED, exception.getMessage(), request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, Object>> handleAccessDeniedException(AccessDeniedException ex, WebRequest request) {
-        logger.error("Access denied error: {}", ex.getMessage());
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", "You do not have permission to access this resource");
-        response.put("status", HttpStatus.FORBIDDEN.value());
-        response.put("error", "Access Denied");
-        response.put("timestamp", System.currentTimeMillis());
-        
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException exception, HttpServletRequest request) {
+        return error(HttpStatus.FORBIDDEN, "You do not have permission to access this resource", request);
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException ex, WebRequest request) {
-        logger.error("Illegal argument error: {}", ex.getMessage());
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", ex.getMessage());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Bad Request");
-        response.put("timestamp", System.currentTimeMillis());
-        
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
+    public ResponseEntity<ErrorResponse> handleInvalidRequest(Exception exception, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, "The request is invalid or could not be read", request);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex, WebRequest request) {
-        logger.error("An unexpected error occurred: {}", ex.getMessage(), ex);
+    public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
+        logger.error("Unexpected error while handling request {}", request.getRequestURI(), exception);
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
+    }
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", "An unexpected error occurred");
-        response.put("error", ex.getMessage());
-        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put("timestamp", System.currentTimeMillis());
-
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    private ResponseEntity<ErrorResponse> error(HttpStatus status, String message, HttpServletRequest request) {
+        return ResponseEntity.status(status)
+                .body(new ErrorResponse(message, status.value(), status.getReasonPhrase(), request.getRequestURI()));
     }
 }

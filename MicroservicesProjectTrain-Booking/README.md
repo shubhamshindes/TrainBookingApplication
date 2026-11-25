@@ -26,7 +26,7 @@ A Spring Boot microservices application for train booking (IRCTC-style), built w
         │                       │                       │                       │
         └───────────────────────┴─────────┬─────────────┴───────────────────────┘
                                           │
-                                          ▼ Shared Infrastructure
+                                          ▼ User profile cache
                                 ┌──────────────────┐
                                 │   Redis :6379    │
                                 └──────────────────┘
@@ -70,15 +70,25 @@ This will:
 1. Pull and start infrastructure containers (**MySQL 8**, **Redis 7**, **Kafka/Zookeeper**, **Prometheus/Grafana**, **Zipkin**, **SonarQube**).
 2. Wait until MySQL and Redis are healthy.
 3. Build the project with Maven (skipping tests).
-4. Launch each service in its own terminal window.
+4. Generate a temporary local JWT signing key if `APP_SECURITY_JWT_SECRET` is not set.
+5. Launch each service in its own terminal window with the same JWT signing key.
 
 ### Option B — Manual step-by-step
 
 #### 1. Start infrastructure
 
 ```powershell
+$bytes = New-Object byte[] 32
+$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+$env:APP_SECURITY_JWT_SECRET = [Convert]::ToBase64String($bytes)
 docker compose up -d
 ```
+
+Keep this variable set when starting all application containers. The launcher in
+Option A generates a temporary key automatically for local service processes.
+For deployments, inject a managed secret through the environment and never use
+an ephemeral development key.
 
 Wait ~30 seconds for MySQL and Kafka to initialise.
 
@@ -106,6 +116,7 @@ java -jar eureka-server/target/eureka-server-0.0.1-SNAPSHOT.jar
 java -jar api-gateway/target/api-gateway-0.0.1-SNAPSHOT.jar
 
 # Terminal 3 — User Service
+# Set APP_SECURITY_JWT_SECRET to the same Base64-encoded key in each service terminal.
 java -jar user-service/target/user-service-0.0.1-SNAPSHOT.jar
 
 # Terminal 4 — Train Service
@@ -158,7 +169,7 @@ The application uses **MySQL 8** with decoupled databases for each microservice 
 
 - **Host**: `localhost:3306`
 - **Username**: `root`
-- **Password**: `Boss@8055`
+- **Credentials**: The checked-in credentials are for local development only. Supply datasource credentials through the deployment environment or a secret manager.
 - **Databases**:
   - `user_db` (for user-service)
   - `train_db` (for train-service)
@@ -184,7 +195,7 @@ docker compose down
 
 | Module | Description |
 |---|---|
-| `common-utils` | Shared library: JPA entities, JWT utils, Spring Security config, Redis config |
+| `common-utils` | Shared library: JWT security, JWT configuration, and stable API error responses |
 | `eureka-server` | Netflix Eureka service discovery server |
 | `api-gateway` | Spring Cloud Gateway — routes and load-balances via Eureka |
 | `user-service` | Registration, login, JWT issuance, user profile |
@@ -192,3 +203,13 @@ docker compose down
 | `booking-service` | Booking creation/cancellation; calls train-service via Feign |
 | `payment-service` | Payment processing, integrated with Kafka to produce payment events |
 | `notification-service`| Listens to Kafka topics to send notifications to users |
+
+Redis caching is configured only in `user-service`, the only service currently
+using Spring Cache. The shared library does not make every service depend on
+Redis. Set the same `APP_SECURITY_JWT_SECRET` on all backend service instances;
+it must be Base64 and decode to at least 32 random bytes. Token lifetime can be
+overridden with `APP_SECURITY_JWT_EXPIRATION` (default `24h`).
+
+## Angular Frontend
+
+The Trackline train booking UI is in [frontend](frontend/README.md). Start the API services first, then run npm install and npm start from that directory. The Angular development server proxies API calls to the gateway on http://localhost:8080.

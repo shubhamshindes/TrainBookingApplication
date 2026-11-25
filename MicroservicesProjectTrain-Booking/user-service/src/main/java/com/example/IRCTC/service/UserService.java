@@ -17,4 +17,5 @@ public interface UserService {
     boolean deleteUserById(Long id);
     String updateUser(Long id, Map<String, Object> updates);
     boolean resetPasswordByEmail(String email, String newPassword);
+    boolean changePassword(String userName, String currentPassword, String newPassword);
 }

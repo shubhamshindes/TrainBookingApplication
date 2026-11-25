@@ -1,34 +1,61 @@
 package com.example.IRCTC.utils;
 
-import io.jsonwebtoken.io.Decoders;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
+import java.util.List;
+
+import javax.crypto.SecretKey;
+
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+import com.example.IRCTC.config.JwtProperties;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import javax.crypto.SecretKey;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
+/** Issues and verifies signed access tokens using externally supplied configuration. */
 @Component
 public class JwtUtil {
 
-    private String SECRET_KEY = "rRbY2XlGcmY9LgQXhJ5JmYk8H7LZJ8ZkC+zAnzN6HME=";
+    private final SecretKey signingKey;
+    private final Duration tokenExpiration;
 
-    private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
-        return Keys.hmacShaKeyFor(keyBytes);
+    public JwtUtil(JwtProperties properties) {
+        if (!StringUtils.hasText(properties.getSecret())) {
+            throw new IllegalStateException(
+                    "APP_SECURITY_JWT_SECRET must be set to a Base64-encoded secret of at least 32 bytes.");
+        }
+
+        try {
+            this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(properties.getSecret().trim()));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException(
+                    "APP_SECURITY_JWT_SECRET must be valid Base64 and decode to at least 32 bytes.", exception);
+        }
+
+        this.tokenExpiration = properties.getExpiration();
+        if (tokenExpiration == null || tokenExpiration.isZero() || tokenExpiration.isNegative()) {
+            throw new IllegalStateException("app.security.jwt.expiration must be a positive duration.");
+        }
     }
 
     public String extractUsername(String token) {
-        Claims claims = extractAllClaims(token);
-        return claims.getSubject();
+        return extractAllClaims(token).getSubject();
     }
 
-    @SuppressWarnings("unchecked")
-    public java.util.List<String> extractRoles(String token) {
-        Claims claims = extractAllClaims(token);
-        return claims.get("roles", java.util.List.class);
+    public List<String> extractRoles(String token) {
+        Object roles = extractAllClaims(token).get("roles");
+        if (!(roles instanceof List<?> roleValues)) {
+            return List.of();
+        }
+        return roleValues.stream()
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .toList();
     }
 
     public Date extractExpiration(String token) {
@@ -37,40 +64,40 @@ public class JwtUtil {
 
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(signingKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
     }
 
-    private Boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
-    }
-
     public String generateToken(String username) {
-        Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, username);
+        return generateToken(username, List.of());
     }
 
-    public String generateToken(String username, java.util.List<String> roles) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("roles", roles);
-        return createToken(claims, username);
-    }
+    public String generateToken(String username, List<String> roles) {
+        if (!StringUtils.hasText(username)) {
+            throw new IllegalArgumentException("A username is required to issue an access token.");
+        }
 
-    private String createToken(Map<String, Object> claims, String subject) {
+        Instant issuedAt = Instant.now();
         return Jwts.builder()
-                .claims(claims)
-                .subject(subject)
-                .header().empty().add("typ","JWT")
-                .and()
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000))
-                .signWith(getSigningKey())
+                .subject(username)
+                .claim("roles", roles == null ? List.of() : List.copyOf(roles))
+                .issuedAt(Date.from(issuedAt))
+                .expiration(Date.from(issuedAt.plus(tokenExpiration)))
+                .signWith(signingKey)
                 .compact();
     }
 
-    public Boolean validateToken(String token) {
-        return !isTokenExpired(token);
+    /** Returns false for malformed, unsigned, expired, or otherwise invalid tokens. */
+    public boolean validateToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            return StringUtils.hasText(claims.getSubject())
+                    && claims.getExpiration() != null
+                    && claims.getExpiration().after(new Date());
+        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException exception) {
+            return false;
+        }
     }
 }

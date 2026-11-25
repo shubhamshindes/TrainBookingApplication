@@ -6,9 +6,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
 public class FeignAuthConfig {
+    @Value("${APP_INTERNAL_SERVICE_TOKEN:local-internal-token-change-me}")
+    private String internalServiceToken;
 
     @Bean
     public RequestInterceptor authorizationHeaderForwarder() {
@@ -25,6 +28,7 @@ public class FeignAuthConfig {
             if (authorization != null && !authorization.isBlank()) {
                 template.header("Authorization", authorization);
             }
+            template.header("X-Internal-Service-Token", internalServiceToken);
         };
     }
 }

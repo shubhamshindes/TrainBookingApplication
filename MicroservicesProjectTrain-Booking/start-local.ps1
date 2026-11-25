@@ -115,6 +115,14 @@ if ($InfraOnly) {
     exit 0
 }
 
+if (-not $env:APP_SECURITY_JWT_SECRET) {
+    $jwtSecretBytes = New-Object byte[] 32
+    $jwtRandom = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $jwtRandom.GetBytes($jwtSecretBytes) } finally { $jwtRandom.Dispose() }
+    $env:APP_SECURITY_JWT_SECRET = [Convert]::ToBase64String($jwtSecretBytes)
+    Write-Warn "Generated a temporary JWT signing key for these local service processes. Tokens expire when this launcher is run again."
+}
+
 # ── Maven build ───────────────────────────────────────────────────────────────
 if (-not $SkipBuild) {
     Write-Step "Building common-utils (shared library)..."

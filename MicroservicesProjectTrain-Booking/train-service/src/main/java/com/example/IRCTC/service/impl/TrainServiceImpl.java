@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
@@ -51,9 +52,10 @@ public class TrainServiceImpl implements TrainService {
     }
 
     @Override
+    @Transactional
     public void updateSeats(Long trainId, int seats) {
         logger.info("Updating seats for trainId={} with delta={}", trainId, seats);
-        Train train = trainRepository.findById(trainId)
+        Train train = trainRepository.findByIdForUpdate(trainId)
                 .orElseThrow(() -> new TrainNotFoundException("Train not found with ID: " + trainId));
 
         int newSeats = train.getAvailableSeats() + seats;
@@ -65,5 +67,24 @@ public class TrainServiceImpl implements TrainService {
         train.setAvailableSeats(newSeats);
         trainRepository.save(train);
         logger.info("Seats updated successfully. New availability for trainId={} is {}", trainId, newSeats);
+    }
+
+    @Override
+    public Train updateTrain(Long trainId, Train updates) {
+        Train train = trainRepository.findById(trainId)
+                .orElseThrow(() -> new TrainNotFoundException("Train not found with ID: " + trainId));
+        if (updates.getName() == null || updates.getName().isBlank()
+                || updates.getSource() == null || updates.getSource().isBlank()
+                || updates.getDestination() == null || updates.getDestination().isBlank()) {
+            throw new IllegalArgumentException("Name, source, and destination are required");
+        }
+        if (updates.getAvailableSeats() < 0) {
+            throw new IllegalArgumentException("Available seats cannot be negative");
+        }
+        train.setName(updates.getName().trim());
+        train.setSource(updates.getSource().trim());
+        train.setDestination(updates.getDestination().trim());
+        train.setAvailableSeats(updates.getAvailableSeats());
+        return trainRepository.save(train);
     }
 }

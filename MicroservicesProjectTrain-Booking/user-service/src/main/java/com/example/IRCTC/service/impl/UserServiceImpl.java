@@ -8,7 +8,6 @@ import com.example.IRCTC.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -35,7 +34,6 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(cacheNames = "users", key = "#id")
     public Optional<User> getUserById(Long id) {
         logger.info("Fetching user with ID: {}", id);
         return userRepository.findById(id);
@@ -174,6 +172,22 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         logger.info("Password reset successful for email {}", email);
+        return true;
+    }
+
+    @Override
+    public boolean changePassword(String userName, String currentPassword, String newPassword) {
+        if (currentPassword == null || currentPassword.isBlank()
+                || newPassword == null || newPassword.length() < 8) {
+            throw new IllegalArgumentException("A valid current password and a 8-character new password are required");
+        }
+        User user = userRepository.findByUserNameIgnoreCase(userName)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new IllegalArgumentException("The current password is incorrect");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
         return true;
     }
 }

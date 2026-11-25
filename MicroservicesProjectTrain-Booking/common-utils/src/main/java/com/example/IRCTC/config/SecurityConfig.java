@@ -1,6 +1,9 @@
 package com.example.IRCTC.config;
 
 import com.example.IRCTC.filter.JwtFilter;
+import com.example.IRCTC.exceptions.ErrorResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,9 +26,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
+    private final ObjectMapper objectMapper;
 
-    public SecurityConfig(JwtFilter jwtFilter) {
+    public SecurityConfig(JwtFilter jwtFilter, ObjectMapper objectMapper) {
         this.jwtFilter = jwtFilter;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -33,11 +38,24 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, exception) -> writeSecurityError(
+                    response,
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "Unauthorized",
+                    "Authentication is required to access this resource",
+                    request.getRequestURI()))
+                .accessDeniedHandler((request, response, exception) -> writeSecurityError(
+                    response,
+                    HttpServletResponse.SC_FORBIDDEN,
+                    "Forbidden",
+                    "You do not have permission to access this resource",
+                    request.getRequestURI())))
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints
                 .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                 // User endpoints
                 .requestMatchers("/user/**", "/USER/**").hasAnyRole("USER", "ADMIN")
                 // Train endpoints
@@ -62,5 +80,12 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
+    }
+
+    private void writeSecurityError(HttpServletResponse response, int status, String error,
+            String message, String path) throws java.io.IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        objectMapper.writeValue(response.getOutputStream(), new ErrorResponse(message, status, error, path));
     }
 }
